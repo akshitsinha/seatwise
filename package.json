@@ -1,0 +1,26 @@
+{
+  "name": "seatwise",
+  "version": "1.0.0",
+  "description": "A fair and transparent seat reservation system",
+  "scripts": {
+    "start": "turbo start",
+    "start-client": "turbo --filter client start",
+    "start-server": "turbo --filter server start",
+    "dev": "turbo dev",
+    "dev-client": "turbo --filter client dev",
+    "dev-server": "turbo --filter server dev",
+    "build": "turbo build",
+    "build-client": "turbo --filter client build",
+    "build-server": "turbo --filter server build",
+    "fmt": "npx -y prettier -w ."
+  },
+  "packageManager": "^npm@10.0.0",
+  "author": "Akshit Sinha",
+  "workspaces": [
+    "packages/*"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "turbo": "^2.2.3"
+  }
+}
