@@ -1,32 +1,8 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Button } from "@/components/ui/button";
-
-type SeatStatus = "available" | "selected" | "unavailable";
-type Seat = {
-  id: string;
-  status: SeatStatus;
-  price: number;
-};
-
-const stands = ["A", "B", "C", "D"];
-const levels = ["1", "2", "3"];
-const rows = ["A", "B", "C", "D", "E"];
-const columns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-const generateSeats = (stand: string, level: string): Seat[] =>
-  rows.flatMap((row) =>
-    columns.map((column) => ({
-      id: `${stand}${level}-${row}${column}`,
-      status: Math.random() > 0.8 ? "unavailable" : "available",
-      price: Math.floor(Math.random() * 1000) + 3000,
-    }))
-  );
-
-const initialSeats = stands.flatMap((stand) =>
-  levels.flatMap((level) => generateSeats(stand, level))
-);
+import { Seat, SeatsResponse } from "@/pages/api/seats";
 
 interface SelectorButtonProps {
   onClick: () => void;
@@ -58,59 +34,68 @@ const SelectorButton: React.FC<SelectorButtonProps> = ({
 );
 
 interface StandSelectorProps {
+  stands: string[];
   onStandSelect: (stand: string) => void;
 }
 
-const StandSelector: React.FC<StandSelectorProps> = ({ onStandSelect }) => (
-  <div
-    style={{
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "10px",
-      justifyContent: "center",
-    }}
-  >
-    {stands.map((stand) => (
-      <SelectorButton key={stand} onClick={() => onStandSelect(stand)}>
-        Stand {stand}
-      </SelectorButton>
-    ))}
-  </div>
-);
+const StandSelector: React.FC<StandSelectorProps> = ({
+  stands,
+  onStandSelect,
+}) => {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "10px",
+        justifyContent: "center",
+      }}
+    >
+      {stands.map((stand) => (
+        <SelectorButton key={stand} onClick={() => onStandSelect(stand)}>
+          Stand {stand}
+        </SelectorButton>
+      ))}
+    </div>
+  );
+};
 
 interface LevelSelectorProps {
+  levels: string[];
   stand: string;
   onLevelSelect: (level: string) => void;
 }
 
 const LevelSelector: React.FC<LevelSelectorProps> = ({
-  stand,
+  levels,
   onLevelSelect,
-}) => (
-  <div
-    style={{
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "10px",
-      justifyContent: "center",
-    }}
-  >
-    {levels.map((level) => (
-      <SelectorButton key={level} onClick={() => onLevelSelect(level)}>
-        Level {level}
-      </SelectorButton>
-    ))}
-  </div>
-);
+}) => {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "10px",
+        justifyContent: "center",
+      }}
+    >
+      {levels.map((level) => (
+        <SelectorButton key={level} onClick={() => onLevelSelect(level)}>
+          Level {level}
+        </SelectorButton>
+      ))}
+    </div>
+  );
+};
 
 interface SeatButtonProps {
-  seat: Seat | null;
+  seat?: Seat;
   onClick: (id: string) => void;
 }
 
 const SeatButton: React.FC<SeatButtonProps> = ({ seat, onClick }) => (
   <button
-    onClick={() => seat && onClick(seat.id)}
+    onClick={() => seat && onClick(seat.sid)}
     style={{
       width: "35px",
       height: "35px",
@@ -132,50 +117,59 @@ const SeatButton: React.FC<SeatButtonProps> = ({ seat, onClick }) => (
     }}
     disabled={!seat || seat.status === "unavailable"}
   >
-    {seat ? seat.id.split("-")[1].slice(-1) : ""}
+    {seat ? seat.sid.split("-")[1].slice(-1) : ""}
   </button>
 );
 
 interface SeatSelectorProps {
   seats: Seat[];
+  rows: string[];
+  columns: number[];
   onSeatToggle: (id: string) => void;
 }
 
-const SeatSelector: React.FC<SeatSelectorProps> = ({ seats, onSeatToggle }) => (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: "5px",
-      alignItems: "center",
-    }}
-  >
-    {rows.map((row) => (
-      <div key={row} style={{ display: "flex", alignItems: "center" }}>
-        <div
-          style={{
-            width: "30px",
-            textAlign: "center",
-            fontWeight: "bold",
-            marginRight: "10px",
-          }}
-        >
-          {row}
+const SeatSelector: React.FC<SeatSelectorProps> = ({
+  seats,
+  rows,
+  columns,
+  onSeatToggle,
+}) => {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "5px",
+        alignItems: "center",
+      }}
+    >
+      {rows.map((row) => (
+        <div key={row} style={{ display: "flex", alignItems: "center" }}>
+          <div
+            style={{
+              width: "30px",
+              textAlign: "center",
+              fontWeight: "bold",
+              marginRight: "10px",
+            }}
+          >
+            {row}
+          </div>
+          {columns.map((column) => {
+            const seat = seats.find((s) => s.sid.endsWith(`${row}${column}`));
+            return (
+              <SeatButton
+                key={`${row}${column}`}
+                seat={seat}
+                onClick={onSeatToggle}
+              />
+            );
+          })}
         </div>
-        {columns.map((column) => {
-          const seat = seats.find((s) => s.id.endsWith(`${row}${column}`));
-          return (
-            <SeatButton
-              key={`${row}${column}`}
-              seat={seat}
-              onClick={onSeatToggle}
-            />
-          );
-        })}
-      </div>
-    ))}
-  </div>
-);
+      ))}
+    </div>
+  );
+};
 
 interface ActionButtonProps {
   onClick?: () => void;
@@ -208,17 +202,46 @@ const ActionButton: React.FC<ActionButtonProps> = ({
 );
 
 export default function Component() {
-  const [seats, setSeats] = useState<Seat[]>(initialSeats);
+  const [seats, setSeats] = useState<Seat[]>([]);
+  const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
+  const [totalPrice, setTotalPrice] = useState<number>(0);
   const [selectedStand, setSelectedStand] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [view, setView] = useState<"stands" | "levels" | "seats" | "summary">(
     "stands"
   );
+  const [stands, setStands] = useState<string[]>([]);
+  const [levels, setLevels] = useState<string[]>([]);
+  const [rows, setRows] = useState<string[]>([]);
+  const [columns, setColumns] = useState<number[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    fetch("/api/seats")
+      .then((res) => res.json())
+      .then((res: SeatsResponse) => {
+        if (!res || !res.success || !res.data) return;
+        setSeats(res.data.seats);
+        setStands(res.data.stands);
+        setLevels(res.data.levels);
+        setRows(res.data.rows);
+        setColumns([...Array(res.data.columns).keys()]);
+        const selected = res.data.seats.filter(
+          (seat: Seat) => seat.status === "selected"
+        );
+        setSelectedSeats(selected);
+        setTotalPrice(selected.reduce((sum, seat) => sum + seat.price, 0));
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <p>Loading...</p>;
+  if (!seats) return <p>Failed to load seats</p>;
 
   const toggleSeat = (id: string) => {
     setSeats((prevSeats) =>
       prevSeats.map((seat) =>
-        seat.id === id && seat.status !== "unavailable"
+        seat.sid === id && seat.status !== "unavailable"
           ? {
               ...seat,
               status: seat.status === "available" ? "selected" : "available",
@@ -226,10 +249,15 @@ export default function Component() {
           : seat
       )
     );
+
+    updateSelectedSeatsAndPrice();
   };
 
-  const selectedSeats = seats.filter((seat) => seat.status === "selected");
-  const totalPrice = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+  const updateSelectedSeatsAndPrice = () => {
+    const selected = seats.filter((seat) => seat.status === "selected");
+    setSelectedSeats(selected);
+    setTotalPrice(selected.reduce((sum, seat) => sum + seat.price, 0));
+  };
 
   const resetSelection = () => {
     setSeats((prevSeats) =>
@@ -237,6 +265,9 @@ export default function Component() {
         seat.status === "selected" ? { ...seat, status: "available" } : seat
       )
     );
+
+    setSelectedSeats([]);
+    setTotalPrice(0);
     setSelectedStand(null);
     setSelectedLevel(null);
     setView("stands");
@@ -265,187 +296,185 @@ export default function Component() {
   };
 
   const handleComplete = () => {
+    updateSelectedSeatsAndPrice();
     setView("summary");
   };
 
   return (
-    <>
-      <div
+    <div
+      style={{
+        maxWidth: "1000px",
+        margin: "0 auto",
+        padding: "20px",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      <h1
         style={{
-          maxWidth: "1000px",
-          margin: "0 auto",
-          padding: "20px",
-          fontFamily: "Arial, sans-serif",
+          fontSize: "28px",
+          fontWeight: "bold",
+          textAlign: "center",
+          marginBottom: "20px",
+          color: "#333",
         }}
       >
-        <h1
-          style={{
-            fontSize: "28px",
-            fontWeight: "bold",
-            textAlign: "center",
-            marginBottom: "20px",
-            color: "#333",
-          }}
-        >
-          Improved Stadium Seat Selector
-        </h1>
-
+        Stadium Seat Selector
+      </h1>
+      <div
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: "8px",
+          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+          marginBottom: "20px",
+          padding: "20px",
+        }}
+      >
         <div
           style={{
-            backgroundColor: "#fff",
-            borderRadius: "8px",
-            boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-            marginBottom: "20px",
-            padding: "20px",
+            fontSize: "20px",
+            fontWeight: "bold",
+            marginBottom: "15px",
+            color: "#2c3e50",
           }}
         >
-          <div
-            style={{
-              fontSize: "20px",
-              fontWeight: "bold",
-              marginBottom: "15px",
-              color: "#2c3e50",
-            }}
-          >
-            {view === "stands"
-              ? "Select a Stand"
-              : view === "levels"
-              ? `Select a Level for Stand ${selectedStand}`
-              : view === "seats"
-              ? `Select Seats for Stand ${selectedStand}, Level ${selectedLevel}`
-              : "Booking Summary"}
+          {view === "stands"
+            ? "Select a Stand"
+            : view === "levels"
+            ? `Select a Level for Stand ${selectedStand}`
+            : view === "seats"
+            ? `Select Seats for Stand ${selectedStand}, Level ${selectedLevel}`
+            : "Booking Summary"}
+        </div>
+        {view === "stands" && (
+          <StandSelector stands={stands} onStandSelect={handleStandSelect} />
+        )}
+        {view === "levels" && selectedStand && (
+          <LevelSelector
+            levels={levels}
+            stand={selectedStand}
+            onLevelSelect={handleLevelSelect}
+          />
+        )}
+        {view === "seats" && selectedStand && selectedLevel && (
+          <SeatSelector
+            seats={seats.filter((seat) =>
+              seat.sid.startsWith(`${selectedStand}${selectedLevel}`)
+            )}
+            rows={rows}
+            columns={columns}
+            onSeatToggle={toggleSeat}
+          />
+        )}
+        {view === "summary" && (
+          <div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+                fontSize: "16px",
+              }}
+            >
+              <span>Selected Seats:</span>
+              <span>
+                {selectedSeats.map((seat) => seat.sid).join(", ") || "None"}
+              </span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+                fontSize: "16px",
+              }}
+            >
+              <span>Total Price:</span>
+              <span>₹{totalPrice}</span>
+            </div>
           </div>
-          {view === "stands" && (
-            <StandSelector onStandSelect={handleStandSelect} />
+        )}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: "20px",
+          }}
+        >
+          {view !== "stands" && (
+            <ActionButton onClick={handleBack}>Back</ActionButton>
           )}
-          {view === "levels" && selectedStand && (
-            <LevelSelector
-              stand={selectedStand}
-              onLevelSelect={handleLevelSelect}
-            />
-          )}
-          {view === "seats" && selectedStand && selectedLevel && (
-            <SeatSelector
-              seats={seats.filter((seat) =>
-                seat.id.startsWith(`${selectedStand}${selectedLevel}`)
-              )}
-              onSeatToggle={toggleSeat}
-            />
+          {view === "seats" && (
+            <ActionButton onClick={handleComplete}>
+              Complete Selection
+            </ActionButton>
           )}
           {view === "summary" && (
-            <div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "10px",
-                  fontSize: "16px",
-                }}
-              >
-                <span>Selected Seats:</span>
-                <span>
-                  {selectedSeats.map((seat) => seat.id).join(", ") || "None"}
-                </span>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "10px",
-                  fontSize: "16px",
-                }}
-              >
-                <span>Total Price:</span>
-                <span>₹{totalPrice}</span>
-              </div>
-            </div>
-          )}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginTop: "20px",
-            }}
-          >
-            {view !== "stands" && (
-              <ActionButton onClick={handleBack}>Back</ActionButton>
-            )}
-            {view === "seats" && (
-              <ActionButton onClick={handleComplete}>
-                Complete Selection
+            <>
+              <ActionButton onClick={resetSelection}>
+                Reset Selection
               </ActionButton>
-            )}
-            {view === "summary" && (
-              <>
-                <ActionButton onClick={resetSelection}>
-                  Reset Selection
-                </ActionButton>
-                <ActionButton disabled={selectedSeats.length === 0}>
-                  Proceed to Checkout
-                </ActionButton>
-              </>
-            )}
-          </div>
+              <ActionButton disabled={selectedSeats.length === 0}>
+                Book
+              </ActionButton>
+            </>
+          )}
         </div>
-
+      </div>
+      <div
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: "8px",
+          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+          marginBottom: "20px",
+          padding: "20px",
+        }}
+      >
         <div
           style={{
-            backgroundColor: "#fff",
-            borderRadius: "8px",
-            boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-            marginBottom: "20px",
-            padding: "20px",
+            fontSize: "20px",
+            fontWeight: "bold",
+            marginBottom: "15px",
+            color: "#2c3e50",
           }}
         >
-          <div
-            style={{
-              fontSize: "20px",
-              fontWeight: "bold",
-              marginBottom: "15px",
-              color: "#2c3e50",
-            }}
-          >
-            Seat Status Legend
+          Seat Status Legend
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <div
+              style={{
+                width: "20px",
+                height: "20px",
+                borderRadius: "4px",
+                backgroundColor: "#2ecc71",
+              }}
+            ></div>
+            <span>Available</span>
           </div>
-          <div
-            style={{ display: "flex", justifyContent: "center", gap: "20px" }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              <div
-                style={{
-                  width: "20px",
-                  height: "20px",
-                  borderRadius: "4px",
-                  backgroundColor: "#2ecc71",
-                }}
-              ></div>
-              <span>Available</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              <div
-                style={{
-                  width: "20px",
-                  height: "20px",
-                  borderRadius: "4px",
-                  backgroundColor: "#e74c3c",
-                }}
-              ></div>
-              <span>Selected</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-              <div
-                style={{
-                  width: "20px",
-                  height: "20px",
-                  borderRadius: "4px",
-                  backgroundColor: "#95a5a6",
-                }}
-              ></div>
-              <span>Unavailable</span>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <div
+              style={{
+                width: "20px",
+                height: "20px",
+                borderRadius: "4px",
+                backgroundColor: "#e74c3c",
+              }}
+            ></div>
+            <span>Selected</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+            <div
+              style={{
+                width: "20px",
+                height: "20px",
+                borderRadius: "4px",
+                backgroundColor: "#95a5a6",
+              }}
+            ></div>
+            <span>Unavailable</span>
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
