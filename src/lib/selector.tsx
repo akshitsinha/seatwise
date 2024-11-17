@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Seat, SeatsResponse } from "@/pages/api/seats";
 
@@ -155,7 +155,7 @@ const SeatSelector: React.FC<SeatSelectorProps> = ({
           >
             {row}
           </div>
-          {columns.map((column) => {
+            {columns.slice(1).map((column) => {
             const seat = seats.find((s) => s.sid.endsWith(`${row}${column}`));
             return (
               <SeatButton
@@ -201,6 +201,51 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   </Button>
 );
 
+const LoadingScreen: React.FC = () => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      height: "100vh",
+      backgroundColor: "#f0f0f0",
+    }}
+  >
+    <div
+      style={{
+        textAlign: "center",
+        fontSize: "24px",
+        fontWeight: "bold",
+        color: "#3498db",
+      }}
+    >
+      <div className="spinner" style={{ marginBottom: "20px" }}>
+        <div
+          style={{
+            width: "40px",
+            height: "40px",
+            border: "4px solid #3498db",
+            borderTop: "4px solid #f0f0f0",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+          }}
+        ></div>
+      </div>
+      Loading...
+    </div>
+    <style jsx>{`
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    `}</style>
+  </div>
+);
+
 export default function Component() {
   const [seats, setSeats] = useState<Seat[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
@@ -215,6 +260,11 @@ export default function Component() {
   const [rows, setRows] = useState<string[]>([]);
   const [columns, setColumns] = useState<number[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [bookingDetails, setBookingDetails] = useState<{
+    ticketId: number;
+    seats: Seat[];
+    amount: number;
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/seats")
@@ -235,7 +285,7 @@ export default function Component() {
       });
   }, []);
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <LoadingScreen />;
   if (!seats) return <p>Failed to load seats</p>;
 
   const toggleSeat = (id: string) => {
@@ -260,17 +310,24 @@ export default function Component() {
   };
 
   const resetSelection = () => {
-    setSeats((prevSeats) =>
-      prevSeats.map((seat) =>
-        seat.status === "selected" ? { ...seat, status: "available" } : seat
-      )
-    );
-
-    setSelectedSeats([]);
-    setTotalPrice(0);
-    setSelectedStand(null);
-    setSelectedLevel(null);
-    setView("stands");
+    setLoading(true);
+    fetch("/api/seats")
+      .then((res) => res.json())
+      .then((res: SeatsResponse) => {
+        if (!res || !res.success || !res.data) return;
+        setSeats(res.data.seats);
+        setStands(res.data.stands);
+        setLevels(res.data.levels);
+        setRows(res.data.rows);
+        setColumns([...Array(res.data.columns).keys()]);
+        setSelectedSeats([]);
+        setTotalPrice(0);
+        setSelectedStand(null);
+        setSelectedLevel(null);
+        setView("stands");
+        setBookingDetails(null);
+        setLoading(false);
+      });
   };
 
   const handleStandSelect = (stand: string) => {
@@ -298,6 +355,23 @@ export default function Component() {
   const handleComplete = () => {
     updateSelectedSeatsAndPrice();
     setView("summary");
+  };
+
+  const handleBook = async () => {
+    const seatIds = selectedSeats.map((seat) => seat.sid);
+    const response = await fetch("/api/book", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ seatIds }),
+    });
+    const result = await response.json();
+    if (result.success) {
+      setBookingDetails(result.data);
+    } else {
+      alert("Failed to book seats: " + result.error);
+    }
   };
 
   return (
@@ -413,12 +487,70 @@ export default function Component() {
               <ActionButton onClick={resetSelection}>
                 Reset Selection
               </ActionButton>
-              <ActionButton disabled={selectedSeats.length === 0}>
+              <ActionButton
+                disabled={selectedSeats.length === 0}
+                onClick={handleBook}
+              >
                 Book
               </ActionButton>
             </>
           )}
         </div>
+        {bookingDetails && (
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "8px",
+              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+              marginTop: "20px",
+              padding: "20px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "20px",
+                fontWeight: "bold",
+                marginBottom: "15px",
+                color: "#2c3e50",
+              }}
+            >
+              Booking Details
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+                fontSize: "16px",
+              }}
+            >
+              <span>Ticket ID:</span>
+              <span>{bookingDetails.ticketId}</span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+                fontSize: "16px",
+              }}
+            >
+              <span>Booked Seats:</span>
+              <span>{bookingDetails.seats.map((seat) => seat.sid).join(", ")}</span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "10px",
+                fontSize: "16px",
+              }}
+            >
+              <span>Total Amount:</span>
+              <span>₹{bookingDetails.amount}</span>
+            </div>
+          </div>
+        )}
       </div>
       <div
         style={{

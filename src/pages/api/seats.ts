@@ -10,7 +10,7 @@ export interface Seat {
 const uri = "mongodb://localhost:27017";
 const client = new MongoClient(uri);
 
-const createSeatsCollection = async (db: any) => {
+const createSeatsCollection = async (db: Db) => {
   const collection = db.collection("seats");
   await collection.createIndex({ sid: 1 }, { unique: true });
 };

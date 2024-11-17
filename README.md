@@ -4,14 +4,12 @@ SeatWise is a powerful and flexible seating arrangement management tool designed
 
 ## Usage
 
-Before running the application start a Postgres instance at port 5432 locally unrestricted.
+Before running the application start a mongodb-community-server instance locally using docker.
 
 To start using SeatWise, run the following command:
 ```bash
-npm i && npm run build && npm start
+npm i && npm run build -- --no-lint && npm start
 ```
-
-
 
 ## License
 
